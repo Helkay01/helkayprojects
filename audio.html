@@ -1,46 +1,497 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Session Consistency Test</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Advanced Audio Fingerprinting Test</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            text-align: center;
+            color: #e94560;
+            margin-bottom: 0.5em;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .section h2 {
+            border-bottom: 2px solid #e94560;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            color: #0f3460;
+            color: #e94560;
+        }
+        .hash-box {
+            background: #0f3460;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        .hash-label {
+            font-weight: bold;
+            color: #53d769;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            font-size: 14px;
+        }
+        th {
+            background: #0f3460;
+            color: #53d769;
+            width: 40%;
+        }
+        td {
+            color: #ddd;
+            font-family: monospace;
+        }
+        button {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #ff6b81;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(233,69,96,0.3);
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #1a4d1a;
+            color: #53d769;
+        }
+        .status.error {
+            background: #4d1a1a;
+            color: #ff6b6b;
+        }
+        .status.info {
+            background: #1a2a4d;
+            color: #6b9fff;
+        }
+        .button-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .comparison {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .comparison-box {
+            flex: 1;
+            min-width: 300px;
+            background: #0f3460;
+            padding: 15px;
+            border-radius: 8px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Session Consistency Test</h1>
-    <button onclick="runTest()">Run Test</button>
-    <button onclick="location.reload()">Reload Page</button>
-    <pre id="current"></pre>
-    <pre id="previous"></pre>
 
-    <script>
-    function runTest() {
-        const audioCtx = new AudioContext();
+<div class="container">
+    <h1>🎵 Advanced Audio Fingerprinting Test</h1>
+    
+    <div class="button-group">
+        <button onclick="runFullTest()">🔍 Run Full Test</button>
+        <button onclick="location.reload()">🔄 Reload Page (Same Session)</button>
+        <button onclick="clearAndReload()">🗑️ Clear & Reload (New Session)</button>
+    </div>
+
+    <div id="status"></div>
+    <div id="results"></div>
+</div>
+
+<script>
+// Global audio context for testing
+let audioCtx = null;
+let offlineCtx = null;
+
+// Utility: SHA-256 hash
+async function sha256(str) {
+    const msgUint8 = new TextEncoder().encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Utility: Create table from object
+function createTable(data) {
+    const table = document.createElement('table');
+    for (const [key, value] of Object.entries(data)) {
+        const row = document.createElement('tr');
+        const cellKey = document.createElement('th');
+        cellKey.textContent = key;
+        const cellValue = document.createElement('td');
+        cellValue.textContent = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        row.appendChild(cellKey);
+        row.appendChild(cellValue);
+        table.appendChild(row);
+    }
+    return table;
+}
+
+// Test 1: Basic AudioContext Properties
+async function testBasicProperties() {
+    const results = {};
+    
+    audioCtx = new AudioContext();
+    
+    results.sampleRate = audioCtx.sampleRate;
+    results.baseLatency = audioCtx.baseLatency;
+    results.outputLatency = audioCtx.outputLatency;
+    results.state = audioCtx.state;
+    results.maxChannels = audioCtx.destination.maxChannelCount;
+    results.channelCount = audioCtx.destination.channelCount;
+    results.channelCountMode = audioCtx.destination.channelCountMode;
+    results.channelInterpretation = audioCtx.destination.channelInterpretation;
+    
+    return results;
+}
+
+// Test 2: Audio Buffer Properties
+async function testAudioBuffer() {
+    const results = {};
+    
+    const buffer = audioCtx.createBuffer(2, 1000, audioCtx.sampleRate);
+    results.bufferLength = buffer.length;
+    results.bufferDuration = buffer.duration;
+    results.bufferSampleRate = buffer.sampleRate;
+    results.bufferChannels = buffer.numberOfChannels;
+    
+    // Get channel data
+    const channel0 = buffer.getChannelData(0);
+    const channel1 = buffer.getChannelData(1);
+    
+    // Fill with test signal
+    for (let i = 0; i < channel0.length; i++) {
+        channel0[i] = Math.sin(i * 0.1) * 0.5;
+        channel1[i] = Math.cos(i * 0.1) * 0.5;
+    }
+    
+    // Sample first few values
+    results.channel0Samples = Array.from(channel0.slice(0, 10));
+    results.channel1Samples = Array.from(channel1.slice(0, 10));
+    
+    return results;
+}
+
+// Test 3: Oscillator Properties
+async function testOscillator() {
+    const results = {};
+    
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    results.oscillatorType = osc.type;
+    results.oscillatorFrequency = osc.frequency.value;
+    results.oscillatorDetune = osc.detune.value;
+    results.gainValue = gain.gain.value;
+    
+    // Test different oscillator types
+    const types = ['sine', 'square', 'sawtooth', 'triangle'];
+    results.oscillatorTypes = {};
+    for (const type of types) {
+        osc.type = type;
+        results.oscillatorTypes[type] = osc.frequency.value;
+    }
+    
+    osc.disconnect();
+    gain.disconnect();
+    
+    return results;
+}
+
+// Test 4: Audio Worklet
+async function testAudioWorklet() {
+    const results = {};
+    
+    try {
+        await audioCtx.audioWorklet.addModule('data:application/javascript,' + encodeURIComponent(`
+            class TestProcessor extends AudioWorkletProcessor {
+                constructor() {
+                    super();
+                    this.sampleCount = 0;
+                }
+                process(inputs, outputs) {
+                    const output = outputs[0];
+                    for (let channel = 0; channel < output.length; channel++) {
+                        for (let i = 0; i < output[channel].length; i++) {
+                            output[channel][i] = Math.sin(this.sampleCount * 0.01);
+                            this.sampleCount++;
+                        }
+                    }
+                    return true;
+                }
+            }
+            registerProcessor('test-processor', TestProcessor);
+        `));
         
-        const fingerprint = {
-            sampleRate: audioCtx.sampleRate,
-            baseLatency: audioCtx.baseLatency,
-            outputLatency: audioCtx.outputLatency,
+        results.workletSupported = true;
+        
+        const workletNode = new AudioWorkletNode(audioCtx, 'test-processor');
+        results.workletChannelCount = workletNode.channelCount;
+        results.workletSampleRate = workletNode.context.sampleRate;
+        
+        workletNode.disconnect();
+    } catch (e) {
+        results.workletSupported = false;
+        results.workletError = e.message;
+    }
+    
+    return results;
+}
+
+// Test 5: Offline Audio Context
+async function testOfflineAudio() {
+    const results = {};
+    
+    try {
+        offlineCtx = new OfflineAudioContext(2, 44100, 44100);
+        
+        results.offlineSampleRate = offlineCtx.sampleRate;
+        results.offlineLength = offlineCtx.length;
+        
+        // Create oscillator
+        const osc = offlineCtx.createOscillator();
+        osc.connect(offlineCtx.destination);
+        osc.start();
+        
+        // Render
+        const renderedBuffer = await offlineCtx.startRendering();
+        
+        results.renderedSampleRate = renderedBuffer.sampleRate;
+        results.renderedLength = renderedBuffer.length;
+        results.renderedChannels = renderedBuffer.numberOfChannels;
+        
+        // Get samples
+        const renderedData = renderedBuffer.getChannelData(0);
+        results.renderedSamples = Array.from(renderedData.slice(0, 10));
+        
+    } catch (e) {
+        results.offlineError = e.message;
+    }
+    
+    return results;
+}
+
+// Test 6: Advanced Timing
+async function testTiming() {
+    const results = {};
+    
+    // Get output timestamp
+    const timestamp = audioCtx.getOutputTimestamp();
+    results.contextTime = timestamp.contextTime;
+    results.performanceTime = timestamp.performanceTime;
+    
+    // Current time
+    results.currentTime = audioCtx.currentTime;
+    
+    // Test multiple timestamps for consistency
+    const timestamps = [];
+    for (let i = 0; i < 5; i++) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        const ts = audioCtx.getOutputTimestamp();
+        timestamps.push({
+            context: ts.contextTime,
+            performance: ts.performanceTime
+        });
+    }
+    results.multipleTimestamps = timestamps;
+    
+    return results;
+}
+
+// Test 7: Audio Param Properties
+async function testAudioParams() {
+    const results = {};
+    
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const biquad = audioCtx.createBiquadFilter();
+    
+    results.frequencyMin = osc.frequency.minValue;
+    results.frequencyMax = osc.frequency.maxValue;
+    results.frequencyDefault = osc.frequency.defaultValue;
+    
+    results.gainMin = gain.gain.minValue;
+    results.gainMax = gain.gain.maxValue;
+    results.gainDefault = gain.gain.defaultValue;
+    
+    results.biquadType = biquad.type;
+    results.biquadFrequency = biquad.frequency.value;
+    results.biquadQ = biquad.Q.value;
+    results.biquadGain = biquad.gain.value;
+    
+    osc.disconnect();
+    gain.disconnect();
+    biquad.disconnect();
+    
+    return results;
+}
+
+// Main test function
+async function runFullTest() {
+    const statusDiv = document.getElementById('status');
+    const resultsDiv = document.getElementById('results');
+    
+    statusDiv.innerHTML = '<div class="status info">⏳ Running audio fingerprinting tests...</div>';
+    resultsDiv.innerHTML = '';
+    
+    try {
+        // Run all tests
+        const basicProps = await testBasicProperties();
+        const bufferProps = await testAudioBuffer();
+        const oscillatorProps = await testOscillator();
+        const workletProps = await testAudioWorklet();
+        const offlineProps = await testOfflineAudio();
+        const timingProps = await testTiming();
+        const paramProps = await testAudioParams();
+        
+        // Combine all results
+        const allResults = {
+            basic: basicProps,
+            buffer: bufferProps,
+            oscillator: oscillatorProps,
+            worklet: workletProps,
+            offline: offlineProps,
+            timing: timingProps,
+            params: paramProps,
+            timestamp: Date.now()
         };
         
-        audioCtx.close();
+        // Generate fingerprint hash
+        const fingerprintString = JSON.stringify(allResults);
+        const fingerprintHash = await sha256(fingerprintString);
         
-        // Save current fingerprint
-        const currentFingerprint = JSON.stringify(fingerprint);
-        document.getElementById('current').textContent = 'Current: ' + currentFingerprint;
+        // Display results
+        let html = '';
         
-        // Compare with previous (from sessionStorage)
-        const previousFingerprint = sessionStorage.getItem('audioFingerprint');
-        document.getElementById('previous').textContent = 'Previous: ' + 
-            (previousFingerprint || 'None (first run)');
+        html += `<div class="section">
+            <h2>🔑 Audio Fingerprint Hash</h2>
+            <div class="hash-box">
+                <span class="hash-label">SHA-256:</span><br>
+                ${fingerprintHash}
+            </div>
+            <div class="hash-box">
+                <span class="hash-label">MD5-like (first 32 chars):</span><br>
+                ${fingerprintHash.substring(0, 32)}
+            </div>
+        </div>`;
         
-        // Save for next reload
-        sessionStorage.setItem('audioFingerprint', currentFingerprint);
+        html += `<div class="section">
+            <h2>📊 Basic Properties</h2>`;
+        html += `<div id="basicTable"></div></div>`;
         
-        // Check if consistent
-        if (previousFingerprint && previousFingerprint === currentFingerprint) {
-            console.log('✓ Consistent within session');
-        } else if (previousFingerprint) {
-            console.log('✗ Different within session!');
+        html += `<div class="section">
+            <h2>🔊 Audio Buffer</h2>`;
+        html += `<div id="bufferTable"></div></div>`;
+        
+        html += `<div class="section">
+            <h2>🎹 Oscillator</h2>`;
+        html += `<div id="oscTable"></div></div>`;
+        
+        html += `<div class="section">
+            <h2>🔧 Audio Worklet</h2>`;
+        html += `<div id="workletTable"></div></div>`;
+        
+        html += `<div class="section">
+            <h2>📦 Offline Audio</h2>`;
+        html += `<div id="offlineTable"></div></div>`;
+        
+        html += `<div class="section">
+            <h2>⏱️ Timing</h2>`;
+        html += `<div id="timingTable"></div></div>`;
+        
+        html += `<div class="section">
+            <h2>🎛️ Audio Params</h2>`;
+        html += `<div id="paramTable"></div></div>`;
+        
+        resultsDiv.innerHTML = html;
+        
+        // Populate tables
+        document.getElementById('basicTable').appendChild(createTable(basicProps));
+        document.getElementById('bufferTable').appendChild(createTable(bufferProps));
+        document.getElementById('oscTable').appendChild(createTable(oscillatorProps));
+        document.getElementById('workletTable').appendChild(createTable(workletProps));
+        document.getElementById('offlineTable').appendChild(createTable(offlineProps));
+        document.getElementById('timingTable').appendChild(createTable(timingProps));
+        document.getElementById('paramTable').appendChild(createTable(paramProps));
+        
+        // Session consistency check
+        const sessionKey = 'audioFingerprintSession';
+        const previousHash = sessionStorage.getItem(sessionKey);
+        sessionStorage.setItem(sessionKey, fingerprintHash);
+        
+        if (previousHash) {
+            if (previousHash === fingerprintHash) {
+                statusDiv.innerHTML = '<div class="status success">✅ SUCCESS: Fingerprint is CONSISTENT within this session!</div>';
+            } else {
+                statusDiv.innerHTML = '<div class="status error">❌ WARNING: Fingerprint CHANGED within session!</div>';
+            }
+        } else {
+            statusDiv.innerHTML = '<div class="status info">ℹ️ First run in this session. Reload to test consistency.</div>';
         }
+        
+        // Close contexts
+        if (audioCtx) audioCtx.close();
+        if (offlineCtx) offlineCtx.close();
+        
+    } catch (e) {
+        statusDiv.innerHTML = `<div class="status error">❌ Error: ${e.message}</div>`;
+        resultsDiv.innerHTML = `<p>Error running tests: ${e.stack}</p>`;
     }
-    </script>
+}
+
+// Clear session storage and reload
+function clearAndReload() {
+    sessionStorage.removeItem('audioFingerprintSession');
+    location.reload();
+}
+
+// Auto-run on page load
+window.addEventListener('load', () => {
+    setTimeout(runFullTest, 500);
+});
+</script>
+
 </body>
 </html>
