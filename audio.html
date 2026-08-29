@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Session Consistency Test</title>
+</head>
+<body>
+    <h1>Session Consistency Test</h1>
+    <button onclick="runTest()">Run Test</button>
+    <button onclick="location.reload()">Reload Page</button>
+    <pre id="current"></pre>
+    <pre id="previous"></pre>
+
+    <script>
+    function runTest() {
+        const audioCtx = new AudioContext();
+        
+        const fingerprint = {
+            sampleRate: audioCtx.sampleRate,
+            baseLatency: audioCtx.baseLatency,
+            outputLatency: audioCtx.outputLatency,
+        };
+        
+        audioCtx.close();
+        
+        // Save current fingerprint
+        const currentFingerprint = JSON.stringify(fingerprint);
+        document.getElementById('current').textContent = 'Current: ' + currentFingerprint;
+        
+        // Compare with previous (from sessionStorage)
+        const previousFingerprint = sessionStorage.getItem('audioFingerprint');
+        document.getElementById('previous').textContent = 'Previous: ' + 
+            (previousFingerprint || 'None (first run)');
+        
+        // Save for next reload
+        sessionStorage.setItem('audioFingerprint', currentFingerprint);
+        
+        // Check if consistent
+        if (previousFingerprint && previousFingerprint === currentFingerprint) {
+            console.log('✓ Consistent within session');
+        } else if (previousFingerprint) {
+            console.log('✗ Different within session!');
+        }
+    }
+    </script>
+</body>
+</html>
