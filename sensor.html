@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sensor Blocking Test</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            text-align: center;
+            color: #e94560;
+            margin-bottom: 0.5em;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .section h2 {
+            border-bottom: 2px solid #e94560;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            color: #e94560;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            font-size: 14px;
+        }
+        th {
+            background: #0f3460;
+            color: #53d769;
+            width: 40%;
+        }
+        td {
+            color: #ddd;
+            font-family: monospace;
+        }
+        button {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #ff6b81;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(233,69,96,0.3);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #1a4d1a;
+            color: #53d769;
+        }
+        .status.error {
+            background: #4d1a1a;
+            color: #ff6b6b;
+        }
+        .status.info {
+            background: #1a2a4d;
+            color: #6b9fff;
+        }
+        .status.blocked {
+            background: #4d3a1a;
+            color: #ffb86b;
+        }
+        .button-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .result-pass {
+            color: #53d769;
+            font-weight: bold;
+        }
+        .result-fail {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        .result-blocked {
+            color: #ffb86b;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🛡️ Sensor Blocking Test</h1>
+    
+    <div class="button-group">
+        <button onclick="runAllTests()">🔍 Run All Tests</button>
+        <button onclick="testPermissions()">🔐 Test Permissions</button>
+        <button onclick="testSensors()">📡 Test Sensors</button>
+    </div>
+
+    <div id="status"></div>
+    <div id="results"></div>
+</div>
+
+<script>
+// Utility to create table
+function createTable(data) {
+    const table = document.createElement('table');
+    for (const [key, value] of Object.entries(data)) {
+        const row = document.createElement('tr');
+        const cellKey = document.createElement('th');
+        cellKey.textContent = key;
+        const cellValue = document.createElement('td');
+        cellValue.innerHTML = value;
+        row.appendChild(cellKey);
+        row.appendChild(cellValue);
+        table.appendChild(row);
+    }
+    return table;
+}
+
+// Test Permissions API
+async function testPermissions() {
+    const results = {};
+    const permissions = [
+        'accelerometer',
+        'gyroscope',
+        'magnetometer',
+        'ambient-light-sensor',
+        'geolocation',
+        'camera',
+        'microphone',
+        'notifications'
+    ];
+    
+    for (const permission of permissions) {
+        try {
+            const status = await navigator.permissions.query({name: permission});
+            results[permission] = status.state;
+        } catch (e) {
+            results[permission] = 'error: ' + e.message;
+        }
+    }
+    
+    return results;
+}
+
+// Test individual sensor
+async function testSensor(sensorName) {
+    const result = {
+        exists: false,
+        created: false,
+        started: false,
+        activated: false,
+        hasReading: false,
+        error: null,
+        errorEvent: null
+    };
+    
+    try {
+        const SensorClass = window[sensorName];
+        result.exists = !!SensorClass;
+        
+        if (!SensorClass) {
+            result.error = 'Not available in window';
+            return result;
+        }
+        
+        // Try to create
+        let sensor;
+        try {
+            sensor = new SensorClass();
+            result.created = true;
+        } catch (e) {
+            result.error = e.name + ': ' + e.message;
+            return result;
+        }
+        
+        // Set up event listeners
+        sensor.onerror = (event) => {
+            result.errorEvent = event.error ? event.error.message : 'Error event';
+        };
+        
+        sensor.onactivate = () => {
+            result.activated = true;
+        };
+        
+        sensor.onreading = () => {
+            result.hasReading = true;
+        };
+        
+        // Try to start
+        try {
+            sensor.start();
+            result.started = true;
+        } catch (e) {
+            result.error = e.name + ': ' + e.message;
+            return result;
+        }
+        
+        // Wait a bit to see if anything happens
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Check state
+        result.activated = sensor.activated;
+        result.hasReading = sensor.hasReading();
+        
+        // Try to stop
+        try {
+            sensor.stop();
+        } catch (e) {
+            // Ignore stop errors
+        }
+        
+    } catch (e) {
+        result.error = e.name + ': ' + e.message;
+    }
+    
+    return result;
+}
+
+// Test all sensors
+async function testSensors() {
+    const sensors = [
+        'Accelerometer',
+        'Gyroscope',
+        'Magnetometer',
+        'AmbientLightSensor',
+        'LinearAccelerationSensor',
+        'AbsoluteOrientationSensor',
+        'RelativeOrientationSensor'
+    ];
+    
+    const results = {};
+    
+    for (const sensorName of sensors) {
+        results[sensorName] = await testSensor(sensorName);
+    }
+    
+    return results;
+}
+
+// Format sensor test result
+function formatSensorResult(name, result) {
+    if (!result.exists) {
+        return `<span class="result-blocked">${name}: Not available (✓ blocked)</span>`;
+    }
+    
+    if (result.error && !result.created) {
+        return `<span class="result-blocked">${name}: Constructor blocked - ${result.error} (✓ blocked)</span>`;
+    }
+    
+    if (result.created && result.errorEvent) {
+        return `<span class="result-blocked">${name}: Error on start - ${result.errorEvent} (✓ blocked)</span>`;
+    }
+    
+    if (result.created && !result.activated && !result.hasReading) {
+        return `<span class="result-blocked">${name}: Created but no data (✓ blocked)</span>`;
+    }
+    
+    if (result.activated || result.hasReading) {
+        return `<span class="result-fail">${name}: SENSOR DATA AVAILABLE! (✗ NOT blocked)</span>`;
+    }
+    
+    return `<span class="result-blocked">${name}: No data available (✓ likely blocked)</span>`;
+}
+
+// Run all tests
+async function runAllTests() {
+    const statusDiv = document.getElementById('status');
+    const resultsDiv = document.getElementById('results');
+    
+    statusDiv.innerHTML = '<div class="status info">⏳ Running sensor blocking tests...</div>';
+    resultsDiv.innerHTML = '';
+    
+    let html = '';
+    
+    // Test Permissions
+    html += `<div class="section">
+        <h2>🔐 Permissions API Results</h2>
+        <div id="permResults"></div>
+    </div>`;
+    
+    // Test Sensors
+    html += `<div class="section">
+        <h2>📡 Sensor Availability Results</h2>
+        <div id="sensorResults"></div>
+    </div>`;
+    
+    resultsDiv.innerHTML = html;
+    
+    // Run permission tests
+    const permResults = await testPermissions();
+    const permTable = {};
+    for (const [key, value] of Object.entries(permResults)) {
+        if (key.includes('sensor') || key.includes('accelerometer') || 
+            key.includes('gyroscope') || key.includes('magnetometer')) {
+            if (value === 'denied') {
+                permTable[key] = `<span class="result-pass">${value} (✓ blocked)</span>`;
+            } else {
+                permTable[key] = `<span class="result-fail">${value} (✗ NOT blocked)</span>`;
+            }
+        } else {
+            permTable[key] = value;
+        }
+    }
+    document.getElementById('permResults').appendChild(createTable(permTable));
+    
+    // Run sensor tests
+    const sensorResults = await testSensors();
+    const sensorTable = {};
+    for (const [name, result] of Object.entries(sensorResults)) {
+        sensorTable[name] = formatSensorResult(name, result);
+    }
+    document.getElementById('sensorResults').appendChild(createTable(sensorTable));
+    
+    // Check overall status
+    let allBlocked = true;
+    for (const [name, result] of Object.entries(sensorResults)) {
+        if (result.exists && result.activated && result.hasReading) {
+            allBlocked = false;
+        }
+    }
+    
+    if (allBlocked) {
+        statusDiv.innerHTML = '<div class="status success">✅ SUCCESS: All sensors are blocked!</div>';
+    } else {
+        statusDiv.innerHTML = '<div class="status error">❌ WARNING: Some sensors may still be accessible!</div>';
+    }
+}
+
+// Auto-run on page load
+window.addEventListener('load', () => {
+    setTimeout(runAllTests, 500);
+});
+</script>
+
+</body>
+</html>
