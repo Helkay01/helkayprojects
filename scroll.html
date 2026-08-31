@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Bot Detection System</title>
+    <title>Advanced Bot Detection System (Fixed: Scroll Coverage)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -13,7 +13,7 @@
             color: #fff;
             min-height: 200vh;
         }
-        
+
         .detection-panel {
             position: fixed;
             top: 20px;
@@ -25,8 +25,10 @@
             width: 350px;
             z-index: 1000;
             backdrop-filter: blur(10px);
+            max-height: 90vh;
+            overflow-y: auto;
         }
-        
+
         .status {
             display: flex;
             align-items: center;
@@ -35,22 +37,12 @@
             border-radius: 5px;
             font-size: 14px;
         }
-        
-        .status.pass {
-            background: rgba(0,255,0,0.1);
-            color: #0f0;
-        }
-        
-        .status.fail {
-            background: rgba(255,0,0,0.1);
-            color: #f00;
-        }
-        
-        .status.warning {
-            background: rgba(255,255,0,0.1);
-            color: #ff0;
-        }
-        
+
+        .status.pass { background: rgba(0,255,0,0.1); color: #0f0; }
+        .status.fail { background: rgba(255,0,0,0.1); color: #f00; }
+        .status.warning { background: rgba(255,255,0,0.1); color: #ff0; }
+        .status.idle { background: rgba(120,120,120,0.1); color: #888; }
+
         .indicator {
             width: 10px;
             height: 10px;
@@ -58,27 +50,33 @@
             margin-right: 10px;
             display: inline-block;
         }
-        
+
         .pass .indicator { background: #0f0; }
         .fail .indicator { background: #f00; }
         .warning .indicator { background: #ff0; }
-        
+        .idle .indicator { background: #888; }
+
         .score {
             font-size: 24px;
             font-weight: bold;
             text-align: center;
             margin: 20px 0;
         }
-        
+
         .score.good { color: #0f0; }
         .score.suspicious { color: #ff0; }
         .score.bot { color: #f00; }
-        
-        .content {
-            max-width: 800px;
-            margin: 0 auto;
+
+        .score-note {
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+            margin-top: -14px;
+            margin-bottom: 14px;
         }
-        
+
+        .content { max-width: 800px; margin: 0 auto; }
+
         .test-area {
             background: #2a2a2a;
             border-radius: 10px;
@@ -86,7 +84,7 @@
             margin: 20px 0;
             text-align: center;
         }
-        
+
         .log {
             max-height: 200px;
             overflow-y: auto;
@@ -97,12 +95,9 @@
             font-family: monospace;
             font-size: 12px;
         }
-        
-        .log-entry {
-            padding: 5px;
-            border-bottom: 1px solid #333;
-        }
-        
+
+        .log-entry { padding: 5px; border-bottom: 1px solid #333; }
+
         button {
             background: #007bff;
             color: white;
@@ -112,74 +107,45 @@
             cursor: pointer;
             margin: 5px;
         }
-        
-        button:hover {
-            background: #0056b3;
-        }
+        button:hover { background: #0056b3; }
+        button.sim { background: #b8860b; }
+        button.sim:hover { background: #8a6508; }
+        button.sim.active { background: #da3633; }
     </style>
 </head>
 <body>
     <div class="detection-panel">
         <h3>🛡️ Bot Detection System</h3>
-        
-        <div class="score good" id="trustScore">
-            100%
-        </div>
-        
+
+        <div class="score good" id="trustScore">100%</div>
+        <div class="score-note" id="scoreNote">based on 0 active categories</div>
+
         <div id="detectionResults">
-            <div class="status pass" id="isTrustedCheck">
-                <span class="indicator"></span>
-                <span>Event Trust Check</span>
-            </div>
-            
-            <div class="status pass" id="touchPressureCheck">
-                <span class="indicator"></span>
-                <span>Touch Pressure</span>
-            </div>
-            
-            <div class="status pass" id="movementPatternCheck">
-                <span class="indicator"></span>
-                <span>Movement Pattern</span>
-            </div>
-            
-            <div class="status pass" id="timingCheck">
-                <span class="indicator"></span>
-                <span>Event Timing</span>
-            </div>
-            
-            <div class="status pass" id="coordinateCheck">
-                <span class="indicator"></span>
-                <span>Coordinate Variance</span>
-            </div>
-            
-            <div class="status pass" id="velocityCheck">
-                <span class="indicator"></span>
-                <span>Velocity Profile</span>
-            </div>
-            
-            <div class="status pass" id="microMovementCheck">
-                <span class="indicator"></span>
-                <span>Micro Movements</span>
-            </div>
-            
-            <div class="status pass" id="eventFrequencyCheck">
-                <span class="indicator"></span>
-                <span>Event Frequency</span>
-            </div>
+            <div class="status idle" id="isTrustedCheck"><span class="indicator"></span><span>Event Trust Check</span></div>
+            <div class="status idle" id="scrollKinematicsCheck"><span class="indicator"></span><span>Scroll Kinematics</span></div>
+            <div class="status idle" id="touchPressureCheck"><span class="indicator"></span><span>Touch Pressure</span></div>
+            <div class="status idle" id="movementPatternCheck"><span class="indicator"></span><span>Movement Pattern</span></div>
+            <div class="status idle" id="timingCheck"><span class="indicator"></span><span>Event Timing</span></div>
+            <div class="status idle" id="coordinateCheck"><span class="indicator"></span><span>Coordinate Variance</span></div>
+            <div class="status idle" id="velocityCheck"><span class="indicator"></span><span>Velocity Profile</span></div>
+            <div class="status idle" id="microMovementCheck"><span class="indicator"></span><span>Micro Movements</span></div>
+            <div class="status idle" id="eventFrequencyCheck"><span class="indicator"></span><span>Event Frequency</span></div>
         </div>
-        
+
         <button onclick="resetDetection()">Reset Detection</button>
         <button onclick="exportLog()">Export Log</button>
-        
+        <br>
+        <button class="sim" id="btnSimScroll" onclick="toggleScrollSim()">🤖 Toggle Fake Scroll Bot</button>
+
         <div class="log" id="eventLog">
             <div class="log-entry">Detection started...</div>
         </div>
     </div>
-    
+
     <div class="content">
         <h1>Scroll and Touch Detection Test</h1>
         <p>Scroll down and interact with this page. The system will analyze your behavior.</p>
-        
+
         <div class="test-area">
             <h2>Touch Test Area</h2>
             <p>Touch and drag in this area</p>
@@ -187,13 +153,13 @@
                 <p>Touch here</p>
             </div>
         </div>
-        
+
         <div class="test-area">
             <h2>Mouse Movement Test</h2>
             <p>Move your mouse around this area</p>
             <div id="mouseArea" style="height: 200px; background: #333; border-radius: 5px;"></div>
         </div>
-        
+
         <div style="height: 100vh;"></div>
         <p>Bottom of test area</p>
     </div>
@@ -203,6 +169,7 @@
             constructor() {
                 this.scores = {
                     isTrusted: 100,
+                    scrollKinematics: 100,
                     touchPressure: 100,
                     movementPattern: 100,
                     timing: 100,
@@ -211,246 +178,178 @@
                     microMovement: 100,
                     eventFrequency: 100
                 };
-                
+
+                // FIX: track which categories have actually received data,
+                // so idle categories (e.g. no touch on a scroll-only bot)
+                // don't sit at 100 and dilute the composite average.
+                this.categoryActive = {};
+                for (const key of Object.keys(this.scores)) this.categoryActive[key] = false;
+
                 this.eventHistory = [];
                 this.touchHistory = [];
                 this.mouseHistory = [];
                 this.scrollHistory = [];
                 this.lastEventTime = 0;
                 this.eventIntervals = [];
-                
+
                 this.setupEventListeners();
                 this.startAnalysis();
             }
-            
+
             setupEventListeners() {
-                // Touch events
                 document.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: true });
                 document.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: true });
                 document.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: true });
-                
-                // Mouse events
+
                 document.addEventListener('mousemove', (e) => this.handleMouseMove(e), { passive: true });
                 document.addEventListener('mousedown', (e) => this.handleMouseDown(e), { passive: true });
                 document.addEventListener('mouseup', (e) => this.handleMouseUp(e), { passive: true });
-                
-                // Scroll events
+
                 document.addEventListener('scroll', (e) => this.handleScroll(e), { passive: true });
                 document.addEventListener('wheel', (e) => this.handleWheel(e), { passive: true });
-                
-                // Keyboard events
+
                 document.addEventListener('keydown', (e) => this.handleKeyDown(e), { passive: true });
                 document.addEventListener('keyup', (e) => this.handleKeyUp(e), { passive: true });
             }
-            
+
             handleTouchStart(e) {
                 const touch = e.touches[0];
                 const eventData = {
-                    type: 'touchstart',
-                    isTrusted: e.isTrusted,
-                    timestamp: performance.now(),
-                    x: touch.clientX,
-                    y: touch.clientY,
+                    type: 'touchstart', isTrusted: e.isTrusted, timestamp: performance.now(),
+                    x: touch.clientX, y: touch.clientY,
                     pressure: touch.force || touch.webkitForce || 0,
-                    radiusX: touch.radiusX || 0,
-                    radiusY: touch.radiusY || 0,
-                    rotationAngle: touch.rotationAngle || 0,
-                    touchCount: e.touches.length
+                    radiusX: touch.radiusX || 0, radiusY: touch.radiusY || 0,
+                    rotationAngle: touch.rotationAngle || 0, touchCount: e.touches.length
                 };
-                
                 this.eventHistory.push(eventData);
                 this.touchHistory.push(eventData);
                 this.analyzeEvent(eventData);
             }
-            
+
             handleTouchMove(e) {
                 if (e.touches.length === 0) return;
-                
                 const touch = e.touches[0];
                 const eventData = {
-                    type: 'touchmove',
-                    isTrusted: e.isTrusted,
-                    timestamp: performance.now(),
-                    x: touch.clientX,
-                    y: touch.clientY,
+                    type: 'touchmove', isTrusted: e.isTrusted, timestamp: performance.now(),
+                    x: touch.clientX, y: touch.clientY,
                     pressure: touch.force || touch.webkitForce || 0,
-                    radiusX: touch.radiusX || 0,
-                    radiusY: touch.radiusY || 0,
-                    rotationAngle: touch.rotationAngle || 0,
-                    touchCount: e.touches.length
+                    radiusX: touch.radiusX || 0, radiusY: touch.radiusY || 0,
+                    rotationAngle: touch.rotationAngle || 0, touchCount: e.touches.length
                 };
-                
                 this.eventHistory.push(eventData);
                 this.touchHistory.push(eventData);
                 this.analyzeEvent(eventData);
             }
-            
+
             handleTouchEnd(e) {
-                const eventData = {
-                    type: 'touchend',
-                    isTrusted: e.isTrusted,
-                    timestamp: performance.now(),
-                    touchCount: e.touches.length
-                };
-                
+                const eventData = { type: 'touchend', isTrusted: e.isTrusted, timestamp: performance.now(), touchCount: e.touches.length };
                 this.eventHistory.push(eventData);
                 this.touchHistory.push(eventData);
                 this.analyzeEvent(eventData);
             }
-            
+
             handleMouseMove(e) {
                 const eventData = {
-                    type: 'mousemove',
-                    isTrusted: e.isTrusted,
-                    timestamp: performance.now(),
-                    x: e.clientX,
-                    y: e.clientY,
-                    movementX: e.movementX || 0,
-                    movementY: e.movementY || 0
+                    type: 'mousemove', isTrusted: e.isTrusted, timestamp: performance.now(),
+                    x: e.clientX, y: e.clientY, movementX: e.movementX || 0, movementY: e.movementY || 0
                 };
-                
                 this.eventHistory.push(eventData);
                 this.mouseHistory.push(eventData);
                 this.analyzeEvent(eventData);
             }
-            
+
             handleMouseDown(e) {
-                const eventData = {
-                    type: 'mousedown',
-                    isTrusted: e.isTrusted,
-                    timestamp: performance.now(),
-                    x: e.clientX,
-                    y: e.clientY,
-                    pressure: e.pressure || 0
-                };
-                
+                const eventData = { type: 'mousedown', isTrusted: e.isTrusted, timestamp: performance.now(), x: e.clientX, y: e.clientY, pressure: e.pressure || 0 };
                 this.eventHistory.push(eventData);
                 this.mouseHistory.push(eventData);
                 this.analyzeEvent(eventData);
             }
-            
+
             handleMouseUp(e) {
-                const eventData = {
-                    type: 'mouseup',
-                    isTrusted: e.isTrusted,
-                    timestamp: performance.now(),
-                    x: e.clientX,
-                    y: e.clientY,
-                    pressure: e.pressure || 0
-                };
-                
+                const eventData = { type: 'mouseup', isTrusted: e.isTrusted, timestamp: performance.now(), x: e.clientX, y: e.clientY, pressure: e.pressure || 0 };
                 this.eventHistory.push(eventData);
                 this.mouseHistory.push(eventData);
                 this.analyzeEvent(eventData);
             }
-            
+
             handleScroll(e) {
                 const eventData = {
-                    type: 'scroll',
-                    isTrusted: e.isTrusted,
-                    timestamp: performance.now(),
-                    scrollX: window.scrollX,
-                    scrollY: window.scrollY,
-                    timeStamp: e.timeStamp
+                    type: 'scroll', isTrusted: e.isTrusted, timestamp: performance.now(),
+                    scrollX: window.scrollX, scrollY: window.scrollY, timeStamp: e.timeStamp
                 };
-                
                 this.eventHistory.push(eventData);
                 this.scrollHistory.push(eventData);
+                if (this.scrollHistory.length > 40) this.scrollHistory.shift();
                 this.analyzeEvent(eventData);
             }
-            
+
             handleWheel(e) {
-                const eventData = {
-                    type: 'wheel',
-                    isTrusted: e.isTrusted,
-                    timestamp: performance.now(),
-                    deltaX: e.deltaX,
-                    deltaY: e.deltaY,
-                    deltaZ: e.deltaZ,
-                    deltaMode: e.deltaMode
-                };
-                
+                const eventData = { type: 'wheel', isTrusted: e.isTrusted, timestamp: performance.now(), deltaX: e.deltaX, deltaY: e.deltaY, deltaZ: e.deltaZ, deltaMode: e.deltaMode };
                 this.eventHistory.push(eventData);
                 this.scrollHistory.push(eventData);
                 this.analyzeEvent(eventData);
             }
-            
+
             handleKeyDown(e) {
-                const eventData = {
-                    type: 'keydown',
-                    isTrusted: e.isTrusted,
-                    timestamp: performance.now(),
-                    key: e.key,
-                    code: e.code,
-                    repeat: e.repeat
-                };
-                
+                const eventData = { type: 'keydown', isTrusted: e.isTrusted, timestamp: performance.now(), key: e.key, code: e.code, repeat: e.repeat };
                 this.eventHistory.push(eventData);
                 this.analyzeEvent(eventData);
             }
-            
+
             handleKeyUp(e) {
-                const eventData = {
-                    type: 'keyup',
-                    isTrusted: e.isTrusted,
-                    timestamp: performance.now(),
-                    key: e.key,
-                    code: e.code
-                };
-                
+                const eventData = { type: 'keyup', isTrusted: e.isTrusted, timestamp: performance.now(), key: e.key, code: e.code };
                 this.eventHistory.push(eventData);
                 this.analyzeEvent(eventData);
             }
-            
+
             analyzeEvent(eventData) {
-                // Check isTrusted
-                if (!eventData.isTrusted && eventData.type !== 'scroll') {
-                    this.penalizeScore('isTrusted', 30, 'Synthetic event detected (isTrusted: false)');
+                // FIX: scroll is no longer exempt from the isTrusted check.
+                // (Note: window.scrollTo() itself still fires a *trusted*
+                // native scroll event, so this alone won't catch scrollTo()-driven
+                // bots — that's what scroll-kinematics below is for. This only
+                // fixes the case where a bot fakes scroll purely via
+                // dispatchEvent(new Event('scroll')) without actually moving
+                // the viewport.)
+                if (!eventData.isTrusted) {
+                    this.markActive('isTrusted');
+                    this.penalizeScore('isTrusted', 30, `Synthetic event detected (isTrusted: false) — ${eventData.type}`);
                 }
-                
-                // Check timing
+
                 const interval = eventData.timestamp - this.lastEventTime;
                 if (this.lastEventTime > 0) {
                     this.eventIntervals.push(interval);
-                    
-                    // Bot detection: too regular intervals
+                    if (this.eventIntervals.length > 30) this.eventIntervals.shift();
+
                     if (this.eventIntervals.length > 10) {
+                        this.markActive('timing');
                         const variance = this.calculateVariance(this.eventIntervals);
                         if (variance < 1) {
                             this.penalizeScore('timing', 20, 'Too regular event intervals');
                         }
                     }
-                    
-                    // Bot detection: synthetic rapid events
+
                     if (interval < 5 && eventData.type === 'touchmove') {
+                        this.markActive('timing');
                         this.penalizeScore('timing', 15, 'Suspicious rapid touch events');
                     }
                 }
                 this.lastEventTime = eventData.timestamp;
-                
-                // Analyze touch pressure
+
                 if (eventData.type === 'touchstart' || eventData.type === 'touchmove') {
-                    if (eventData.pressure === 0) {
-                        this.penalizeScore('touchPressure', 10, 'No touch pressure detected');
-                    }
-                    
-                    if (eventData.pressure === 1 && eventData.type === 'touchmove') {
-                        this.penalizeScore('touchPressure', 5, 'Constant maximum pressure suspicious');
-                    }
+                    this.markActive('touchPressure');
+                    if (eventData.pressure === 0) this.penalizeScore('touchPressure', 10, 'No touch pressure detected');
+                    if (eventData.pressure === 1 && eventData.type === 'touchmove') this.penalizeScore('touchPressure', 5, 'Constant maximum pressure suspicious');
                 }
-                
-                // Analyze movement patterns
+
                 if (eventData.type === 'touchmove' && this.touchHistory.length > 3) {
+                    this.markActive('movementPattern');
                     const lastThree = this.touchHistory.slice(-3);
                     const distances = [];
-                    
                     for (let i = 1; i < lastThree.length; i++) {
                         const dx = lastThree[i].x - lastThree[i-1].x;
                         const dy = lastThree[i].y - lastThree[i-1].y;
                         distances.push(Math.sqrt(dx*dx + dy*dy));
                     }
-                    
-                    // Bot detection: perfect uniform movement
                     if (distances.length === 2) {
                         const distanceRatio = distances[0] / (distances[1] || 1);
                         if (distanceRatio > 0.98 && distanceRatio < 1.02) {
@@ -458,106 +357,121 @@
                         }
                     }
                 }
-                
-                // Analyze coordinate variance
+
                 if (eventData.x !== undefined && eventData.y !== undefined) {
                     const recentEvents = this.eventHistory.slice(-20).filter(e => e.x !== undefined);
-                    
                     if (recentEvents.length > 10) {
-                        const xValues = recentEvents.map(e => e.x);
-                        const yValues = recentEvents.map(e => e.y);
-                        
-                        const xVariance = this.calculateVariance(xValues);
-                        const yVariance = this.calculateVariance(yValues);
-                        
-                        // Bot detection: too perfect coordinates
+                        this.markActive('coordinate');
+                        const xVariance = this.calculateVariance(recentEvents.map(e => e.x));
+                        const yVariance = this.calculateVariance(recentEvents.map(e => e.y));
                         if (xVariance < 0.01 && yVariance < 0.01) {
                             this.penalizeScore('coordinate', 25, 'Suspicious coordinate clustering');
                         }
                     }
                 }
-                
-                // Analyze velocity
+
                 if (eventData.type === 'touchmove' && this.touchHistory.length > 5) {
+                    this.markActive('velocity');
                     const velocities = [];
                     const touchMoves = this.touchHistory.filter(e => e.type === 'touchmove').slice(-10);
-                    
                     for (let i = 2; i < touchMoves.length; i++) {
                         const dt = touchMoves[i].timestamp - touchMoves[i-2].timestamp;
                         const dx = touchMoves[i].x - touchMoves[i-2].x;
                         const dy = touchMoves[i].y - touchMoves[i-2].y;
-                        
-                        if (dt > 0) {
-                            const velocity = Math.sqrt(dx*dx + dy*dy) / dt;
-                            velocities.push(velocity);
-                        }
+                        if (dt > 0) velocities.push(Math.sqrt(dx*dx + dy*dy) / dt);
                     }
-                    
                     if (velocities.length > 3) {
                         const velocityVariance = this.calculateVariance(velocities);
-                        
-                        // Bot detection: too consistent velocity
-                        if (velocityVariance < 0.001) {
-                            this.penalizeScore('velocity', 20, 'Too consistent velocity profile');
-                        }
+                        if (velocityVariance < 0.001) this.penalizeScore('velocity', 20, 'Too consistent velocity profile');
                     }
                 }
-                
-                // Micro movement analysis
+
                 if (eventData.type === 'mousemove' && this.mouseHistory.length > 5) {
+                    this.markActive('microMovement');
                     const recentMoves = this.mouseHistory.slice(-5);
                     let microMovements = 0;
-                    
                     for (let i = 1; i < recentMoves.length; i++) {
                         const dx = recentMoves[i].x - recentMoves[i-1].x;
                         const dy = recentMoves[i].y - recentMoves[i-1].y;
-                        
-                        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) {
-                            microMovements++;
-                        }
+                        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) microMovements++;
                     }
-                    
-                    // Bot detection: no micro movements (too direct)
                     if (microMovements === 0 && recentMoves.length > 2) {
                         this.penalizeScore('microMovement', 10, 'No micro movements detected');
                     }
                 }
-                
-                // Event frequency analysis
+
                 if (this.eventHistory.length > 50) {
+                    this.markActive('eventFrequency');
                     const recentEvents = this.eventHistory.slice(-50);
                     const timeSpan = recentEvents[recentEvents.length - 1].timestamp - recentEvents[0].timestamp;
-                    
                     if (timeSpan > 0) {
                         const frequency = recentEvents.length / (timeSpan / 1000);
-                        
-                        // Bot detection: suspicious event frequency
-                        if (frequency > 1000) {
-                            this.penalizeScore('eventFrequency', 30, 'Suspicious event frequency: ' + frequency.toFixed(0) + ' events/sec');
-                        }
+                        if (frequency > 1000) this.penalizeScore('eventFrequency', 30, 'Suspicious event frequency: ' + frequency.toFixed(0) + ' events/sec');
                     }
                 }
-                
+
+                // FIX: dedicated scroll-kinematics analysis. The old code
+                // collected scrollHistory but never analyzed it. Real
+                // scrolling has a momentum/deceleration curve — delta size
+                // and timing between scroll events vary. A scrollTo()-driven
+                // bot firing fixed-size jumps at a fixed interval produces
+                // near-zero variance in both. This is the check that catches
+                // scrollTo()-based bots even though their scroll events are
+                // isTrusted: true.
+                if (eventData.type === 'scroll') {
+                    this.analyzeScrollKinematics();
+                }
+
                 this.updateDisplay();
             }
-            
+
+            analyzeScrollKinematics() {
+                const scrolls = this.scrollHistory.filter(e => e.type === 'scroll');
+                if (scrolls.length < 6) return;
+                this.markActive('scrollKinematics');
+
+                const recent = scrolls.slice(-10);
+                const deltas = [];
+                const intervals = [];
+                for (let i = 1; i < recent.length; i++) {
+                    deltas.push(recent[i].scrollY - recent[i-1].scrollY);
+                    intervals.push(recent[i].timestamp - recent[i-1].timestamp);
+                }
+
+                const nonZeroDeltas = deltas.filter(d => d !== 0);
+                if (nonZeroDeltas.length < 4) return;
+
+                const deltaVariance = this.calculateVariance(nonZeroDeltas);
+                const intervalVariance = this.calculateVariance(intervals);
+                const meanInterval = intervals.reduce((a,b) => a+b, 0) / intervals.length;
+
+                // Fixed-magnitude jumps (e.g. always exactly +/-250px) at a
+                // fixed cadence (setInterval-driven) = classic bot signature.
+                if (deltaVariance < 4 && intervalVariance < 4 && meanInterval < 2000) {
+                    this.penalizeScore('scrollKinematics', 30, `Uniform scroll deltas/timing (Δvar=${deltaVariance.toFixed(1)}, ivar=${intervalVariance.toFixed(1)}) — no momentum curve`);
+                } else if (intervalVariance < 2 && meanInterval < 2000) {
+                    this.penalizeScore('scrollKinematics', 15, `Scroll timing unnaturally regular (ivar=${intervalVariance.toFixed(1)})`);
+                }
+            }
+
+            markActive(scoreName) {
+                this.categoryActive[scoreName] = true;
+            }
+
             calculateVariance(values) {
                 if (values.length === 0) return 0;
-                
                 const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
                 const squaredDifferences = values.map(val => Math.pow(val - mean, 2));
-                const variance = squaredDifferences.reduce((sum, val) => sum + val, 0) / values.length;
-                
-                return variance;
+                return squaredDifferences.reduce((sum, val) => sum + val, 0) / values.length;
             }
-            
+
             penalizeScore(scoreName, penalty, reason) {
                 if (this.scores[scoreName] > 0) {
                     this.scores[scoreName] = Math.max(0, this.scores[scoreName] - penalty);
                     this.logDetection(reason, 'warning');
                 }
             }
-            
+
             logDetection(message, type = 'info') {
                 const logElement = document.getElementById('eventLog');
                 const entry = document.createElement('div');
@@ -565,85 +479,72 @@
                 entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
                 logElement.appendChild(entry);
                 logElement.scrollTop = logElement.scrollHeight;
-                
-                // Keep log manageable
-                while (logElement.children.length > 100) {
-                    logElement.removeChild(logElement.firstChild);
-                }
+                while (logElement.children.length > 100) logElement.removeChild(logElement.firstChild);
             }
-            
+
             updateDisplay() {
-                const totalScore = Object.values(this.scores).reduce((sum, val) => sum + val, 0) / Object.keys(this.scores).length;
+                // FIX: average only over categories that have received data.
+                // Idle categories no longer dilute the composite score.
+                const activeKeys = Object.keys(this.scores).filter(k => this.categoryActive[k]);
                 const scoreElement = document.getElementById('trustScore');
-                
+                const noteElement = document.getElementById('scoreNote');
+
+                let totalScore;
+                if (activeKeys.length === 0) {
+                    totalScore = 100;
+                } else {
+                    totalScore = activeKeys.reduce((sum, k) => sum + this.scores[k], 0) / activeKeys.length;
+                }
+
                 scoreElement.textContent = Math.round(totalScore) + '%';
                 scoreElement.className = 'score';
-                
-                if (totalScore > 80) {
-                    scoreElement.classList.add('good');
-                } else if (totalScore > 50) {
-                    scoreElement.classList.add('suspicious');
-                } else {
-                    scoreElement.classList.add('bot');
-                }
-                
-                // Update individual checks
+                if (totalScore > 80) scoreElement.classList.add('good');
+                else if (totalScore > 50) scoreElement.classList.add('suspicious');
+                else scoreElement.classList.add('bot');
+
+                noteElement.textContent = `based on ${activeKeys.length} active categor${activeKeys.length === 1 ? 'y' : 'ies'}`;
+
                 for (const [scoreName, score] of Object.entries(this.scores)) {
                     const checkElement = document.getElementById(scoreName + 'Check');
-                    if (checkElement) {
-                        if (score > 80) {
-                            checkElement.className = 'status pass';
-                        } else if (score > 50) {
-                            checkElement.className = 'status warning';
-                        } else {
-                            checkElement.className = 'status fail';
-                        }
+                    if (!checkElement) continue;
+                    if (!this.categoryActive[scoreName]) {
+                        checkElement.className = 'status idle';
+                        continue;
                     }
+                    if (score > 80) checkElement.className = 'status pass';
+                    else if (score > 50) checkElement.className = 'status warning';
+                    else checkElement.className = 'status fail';
                 }
             }
-            
+
             startAnalysis() {
-                setInterval(() => {
-                    this.updateDisplay();
-                }, 1000);
+                setInterval(() => this.updateDisplay(), 1000);
             }
-            
+
             reset() {
                 this.scores = {
-                    isTrusted: 100,
-                    touchPressure: 100,
-                    movementPattern: 100,
-                    timing: 100,
-                    coordinate: 100,
-                    velocity: 100,
-                    microMovement: 100,
-                    eventFrequency: 100
+                    isTrusted: 100, scrollKinematics: 100, touchPressure: 100, movementPattern: 100,
+                    timing: 100, coordinate: 100, velocity: 100, microMovement: 100, eventFrequency: 100
                 };
-                
+                for (const key of Object.keys(this.scores)) this.categoryActive[key] = false;
                 this.eventHistory = [];
                 this.touchHistory = [];
                 this.mouseHistory = [];
                 this.scrollHistory = [];
                 this.lastEventTime = 0;
                 this.eventIntervals = [];
-                
                 document.getElementById('eventLog').innerHTML = '<div class="log-entry">Detection reset...</div>';
                 this.updateDisplay();
             }
         }
-        
-        // Initialize detector
+
         const detector = new AdvancedBotDetector();
-        
-        // Global functions for buttons
-        function resetDetection() {
-            detector.reset();
-        }
-        
+
+        function resetDetection() { detector.reset(); }
+
         function exportLog() {
             const logEntries = document.querySelectorAll('.log-entry');
             const logText = Array.from(logEntries).map(entry => entry.textContent).join('\n');
-            
             const blob = new Blob([logText], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -652,18 +553,36 @@
             a.click();
             URL.revokeObjectURL(url);
         }
-        
-        // Additional passive detection
+
+        // Built-in fake scroll bot toggle — for testing the detector itself,
+        // in-page, no console or userscript manager required.
+        let scrollSimTimer = null;
+        let scrollSimDir = 1;
+        function toggleScrollSim() {
+            const btn = document.getElementById('btnSimScroll');
+            if (scrollSimTimer) {
+                clearInterval(scrollSimTimer);
+                scrollSimTimer = null;
+                btn.classList.remove('active');
+                detector.logDetection('Fake scroll bot stopped', 'info');
+            } else {
+                btn.classList.add('active');
+                detector.logDetection('Fake scroll bot started (fixed 250px / 400ms)', 'info');
+                scrollSimTimer = setInterval(() => {
+                    const next = window.scrollY + (250 * scrollSimDir);
+                    if (next < 0 || next > document.body.scrollHeight) scrollSimDir *= -1;
+                    window.scrollTo({ top: window.scrollY + (250 * scrollSimDir), behavior: 'instant' });
+                }, 400);
+            }
+        }
+
         setInterval(() => {
-            // Check for missing browser features that bots often lack
             const checks = {
                 'WebGL': () => {
                     try {
                         const canvas = document.createElement('canvas');
                         return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
-                    } catch(e) {
-                        return false;
-                    }
+                    } catch(e) { return false; }
                 },
                 'Canvas Fingerprint': () => {
                     try {
@@ -673,31 +592,18 @@
                         ctx.font = "14px 'Arial'";
                         ctx.fillText("Bot Detection", 2, 2);
                         return ctx.getImageData(0, 0, 50, 50).data.length > 0;
-                    } catch(e) {
-                        return false;
-                    }
+                    } catch(e) { return false; }
                 },
-                'Audio Context': () => {
-                    return !!(window.AudioContext || window.webkitAudioContext);
-                },
-                'Chrome Runtime': () => {
-                    return !!window.chrome?.runtime;
-                },
-                'Permissions API': () => {
-                    return !!navigator.permissions;
-                }
+                'Audio Context': () => !!(window.AudioContext || window.webkitAudioContext),
+                'Chrome Runtime': () => !!window.chrome?.runtime,
+                'Permissions API': () => !!navigator.permissions
             };
-            
             for (const [checkName, checkFn] of Object.entries(checks)) {
-                if (!checkFn()) {
-                    detector.logDetection(`Missing browser feature: ${checkName}`, 'warning');
-                }
+                if (!checkFn()) detector.logDetection(`Missing browser feature: ${checkName}`, 'warning');
             }
         }, 5000);
-        
-        // Log initial detection
-        console.log('Advanced Bot Detection System initialized');
-        console.log('Monitoring for synthetic events, irregular patterns, and bot signatures');
+
+        console.log('Advanced Bot Detection System initialized (scroll-kinematics fix applied)');
     </script>
 </body>
 </html>
