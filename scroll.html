@@ -310,8 +310,8 @@
                 // fixes the case where a bot fakes scroll purely via
                 // dispatchEvent(new Event('scroll')) without actually moving
                 // the viewport.)
+                this.markActive('isTrusted');
                 if (!eventData.isTrusted) {
-                    this.markActive('isTrusted');
                     this.penalizeScore('isTrusted', 30, `Synthetic event detected (isTrusted: false) — ${eventData.type}`);
                 }
 
