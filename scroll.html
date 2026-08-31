@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Bot Detection System</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            min-height: 200vh;
+        }
+        
+        .detection-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.9);
+            border: 1px solid #444;
+            border-radius: 10px;
+            padding: 20px;
+            width: 350px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .status.pass {
+            background: rgba(0,255,0,0.1);
+            color: #0f0;
+        }
+        
+        .status.fail {
+            background: rgba(255,0,0,0.1);
+            color: #f00;
+        }
+        
+        .status.warning {
+            background: rgba(255,255,0,0.1);
+            color: #ff0;
+        }
+        
+        .indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+            display: inline-block;
+        }
+        
+        .pass .indicator { background: #0f0; }
+        .fail .indicator { background: #f00; }
+        .warning .indicator { background: #ff0; }
+        
+        .score {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .score.good { color: #0f0; }
+        .score.suspicious { color: #ff0; }
+        .score.bot { color: #f00; }
+        
+        .content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .test-area {
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 40px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .log {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+            background: #000;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            padding: 5px;
+            border-bottom: 1px solid #333;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="detection-panel">
+        <h3>🛡️ Bot Detection System</h3>
+        
+        <div class="score good" id="trustScore">
+            100%
+        </div>
+        
+        <div id="detectionResults">
+            <div class="status pass" id="isTrustedCheck">
+                <span class="indicator"></span>
+                <span>Event Trust Check</span>
+            </div>
+            
+            <div class="status pass" id="touchPressureCheck">
+                <span class="indicator"></span>
+                <span>Touch Pressure</span>
+            </div>
+            
+            <div class="status pass" id="movementPatternCheck">
+                <span class="indicator"></span>
+                <span>Movement Pattern</span>
+            </div>
+            
+            <div class="status pass" id="timingCheck">
+                <span class="indicator"></span>
+                <span>Event Timing</span>
+            </div>
+            
+            <div class="status pass" id="coordinateCheck">
+                <span class="indicator"></span>
+                <span>Coordinate Variance</span>
+            </div>
+            
+            <div class="status pass" id="velocityCheck">
+                <span class="indicator"></span>
+                <span>Velocity Profile</span>
+            </div>
+            
+            <div class="status pass" id="microMovementCheck">
+                <span class="indicator"></span>
+                <span>Micro Movements</span>
+            </div>
+            
+            <div class="status pass" id="eventFrequencyCheck">
+                <span class="indicator"></span>
+                <span>Event Frequency</span>
+            </div>
+        </div>
+        
+        <button onclick="resetDetection()">Reset Detection</button>
+        <button onclick="exportLog()">Export Log</button>
+        
+        <div class="log" id="eventLog">
+            <div class="log-entry">Detection started...</div>
+        </div>
+    </div>
+    
+    <div class="content">
+        <h1>Scroll and Touch Detection Test</h1>
+        <p>Scroll down and interact with this page. The system will analyze your behavior.</p>
+        
+        <div class="test-area">
+            <h2>Touch Test Area</h2>
+            <p>Touch and drag in this area</p>
+            <div id="touchArea" style="height: 300px; background: #333; border-radius: 5px; touch-action: none;">
+                <p>Touch here</p>
+            </div>
+        </div>
+        
+        <div class="test-area">
+            <h2>Mouse Movement Test</h2>
+            <p>Move your mouse around this area</p>
+            <div id="mouseArea" style="height: 200px; background: #333; border-radius: 5px;"></div>
+        </div>
+        
+        <div style="height: 100vh;"></div>
+        <p>Bottom of test area</p>
+    </div>
+
+    <script>
+        class AdvancedBotDetector {
+            constructor() {
+                this.scores = {
+                    isTrusted: 100,
+                    touchPressure: 100,
+                    movementPattern: 100,
+                    timing: 100,
+                    coordinate: 100,
+                    velocity: 100,
+                    microMovement: 100,
+                    eventFrequency: 100
+                };
+                
+                this.eventHistory = [];
+                this.touchHistory = [];
+                this.mouseHistory = [];
+                this.scrollHistory = [];
+                this.lastEventTime = 0;
+                this.eventIntervals = [];
+                
+                this.setupEventListeners();
+                this.startAnalysis();
+            }
+            
+            setupEventListeners() {
+                // Touch events
+                document.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: true });
+                document.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: true });
+                document.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: true });
+                
+                // Mouse events
+                document.addEventListener('mousemove', (e) => this.handleMouseMove(e), { passive: true });
+                document.addEventListener('mousedown', (e) => this.handleMouseDown(e), { passive: true });
+                document.addEventListener('mouseup', (e) => this.handleMouseUp(e), { passive: true });
+                
+                // Scroll events
+                document.addEventListener('scroll', (e) => this.handleScroll(e), { passive: true });
+                document.addEventListener('wheel', (e) => this.handleWheel(e), { passive: true });
+                
+                // Keyboard events
+                document.addEventListener('keydown', (e) => this.handleKeyDown(e), { passive: true });
+                document.addEventListener('keyup', (e) => this.handleKeyUp(e), { passive: true });
+            }
+            
+            handleTouchStart(e) {
+                const touch = e.touches[0];
+                const eventData = {
+                    type: 'touchstart',
+                    isTrusted: e.isTrusted,
+                    timestamp: performance.now(),
+                    x: touch.clientX,
+                    y: touch.clientY,
+                    pressure: touch.force || touch.webkitForce || 0,
+                    radiusX: touch.radiusX || 0,
+                    radiusY: touch.radiusY || 0,
+                    rotationAngle: touch.rotationAngle || 0,
+                    touchCount: e.touches.length
+                };
+                
+                this.eventHistory.push(eventData);
+                this.touchHistory.push(eventData);
+                this.analyzeEvent(eventData);
+            }
+            
+            handleTouchMove(e) {
+                if (e.touches.length === 0) return;
+                
+                const touch = e.touches[0];
+                const eventData = {
+                    type: 'touchmove',
+                    isTrusted: e.isTrusted,
+                    timestamp: performance.now(),
+                    x: touch.clientX,
+                    y: touch.clientY,
+                    pressure: touch.force || touch.webkitForce || 0,
+                    radiusX: touch.radiusX || 0,
+                    radiusY: touch.radiusY || 0,
+                    rotationAngle: touch.rotationAngle || 0,
+                    touchCount: e.touches.length
+                };
+                
+                this.eventHistory.push(eventData);
+                this.touchHistory.push(eventData);
+                this.analyzeEvent(eventData);
+            }
+            
+            handleTouchEnd(e) {
+                const eventData = {
+                    type: 'touchend',
+                    isTrusted: e.isTrusted,
+                    timestamp: performance.now(),
+                    touchCount: e.touches.length
+                };
+                
+                this.eventHistory.push(eventData);
+                this.touchHistory.push(eventData);
+                this.analyzeEvent(eventData);
+            }
+            
+            handleMouseMove(e) {
+                const eventData = {
+                    type: 'mousemove',
+                    isTrusted: e.isTrusted,
+                    timestamp: performance.now(),
+                    x: e.clientX,
+                    y: e.clientY,
+                    movementX: e.movementX || 0,
+                    movementY: e.movementY || 0
+                };
+                
+                this.eventHistory.push(eventData);
+                this.mouseHistory.push(eventData);
+                this.analyzeEvent(eventData);
+            }
+            
+            handleMouseDown(e) {
+                const eventData = {
+                    type: 'mousedown',
+                    isTrusted: e.isTrusted,
+                    timestamp: performance.now(),
+                    x: e.clientX,
+                    y: e.clientY,
+                    pressure: e.pressure || 0
+                };
+                
+                this.eventHistory.push(eventData);
+                this.mouseHistory.push(eventData);
+                this.analyzeEvent(eventData);
+            }
+            
+            handleMouseUp(e) {
+                const eventData = {
+                    type: 'mouseup',
+                    isTrusted: e.isTrusted,
+                    timestamp: performance.now(),
+                    x: e.clientX,
+                    y: e.clientY,
+                    pressure: e.pressure || 0
+                };
+                
+                this.eventHistory.push(eventData);
+                this.mouseHistory.push(eventData);
+                this.analyzeEvent(eventData);
+            }
+            
+            handleScroll(e) {
+                const eventData = {
+                    type: 'scroll',
+                    isTrusted: e.isTrusted,
+                    timestamp: performance.now(),
+                    scrollX: window.scrollX,
+                    scrollY: window.scrollY,
+                    timeStamp: e.timeStamp
+                };
+                
+                this.eventHistory.push(eventData);
+                this.scrollHistory.push(eventData);
+                this.analyzeEvent(eventData);
+            }
+            
+            handleWheel(e) {
+                const eventData = {
+                    type: 'wheel',
+                    isTrusted: e.isTrusted,
+                    timestamp: performance.now(),
+                    deltaX: e.deltaX,
+                    deltaY: e.deltaY,
+                    deltaZ: e.deltaZ,
+                    deltaMode: e.deltaMode
+                };
+                
+                this.eventHistory.push(eventData);
+                this.scrollHistory.push(eventData);
+                this.analyzeEvent(eventData);
+            }
+            
+            handleKeyDown(e) {
+                const eventData = {
+                    type: 'keydown',
+                    isTrusted: e.isTrusted,
+                    timestamp: performance.now(),
+                    key: e.key,
+                    code: e.code,
+                    repeat: e.repeat
+                };
+                
+                this.eventHistory.push(eventData);
+                this.analyzeEvent(eventData);
+            }
+            
+            handleKeyUp(e) {
+                const eventData = {
+                    type: 'keyup',
+                    isTrusted: e.isTrusted,
+                    timestamp: performance.now(),
+                    key: e.key,
+                    code: e.code
+                };
+                
+                this.eventHistory.push(eventData);
+                this.analyzeEvent(eventData);
+            }
+            
+            analyzeEvent(eventData) {
+                // Check isTrusted
+                if (!eventData.isTrusted && eventData.type !== 'scroll') {
+                    this.penalizeScore('isTrusted', 30, 'Synthetic event detected (isTrusted: false)');
+                }
+                
+                // Check timing
+                const interval = eventData.timestamp - this.lastEventTime;
+                if (this.lastEventTime > 0) {
+                    this.eventIntervals.push(interval);
+                    
+                    // Bot detection: too regular intervals
+                    if (this.eventIntervals.length > 10) {
+                        const variance = this.calculateVariance(this.eventIntervals);
+                        if (variance < 1) {
+                            this.penalizeScore('timing', 20, 'Too regular event intervals');
+                        }
+                    }
+                    
+                    // Bot detection: synthetic rapid events
+                    if (interval < 5 && eventData.type === 'touchmove') {
+                        this.penalizeScore('timing', 15, 'Suspicious rapid touch events');
+                    }
+                }
+                this.lastEventTime = eventData.timestamp;
+                
+                // Analyze touch pressure
+                if (eventData.type === 'touchstart' || eventData.type === 'touchmove') {
+                    if (eventData.pressure === 0) {
+                        this.penalizeScore('touchPressure', 10, 'No touch pressure detected');
+                    }
+                    
+                    if (eventData.pressure === 1 && eventData.type === 'touchmove') {
+                        this.penalizeScore('touchPressure', 5, 'Constant maximum pressure suspicious');
+                    }
+                }
+                
+                // Analyze movement patterns
+                if (eventData.type === 'touchmove' && this.touchHistory.length > 3) {
+                    const lastThree = this.touchHistory.slice(-3);
+                    const distances = [];
+                    
+                    for (let i = 1; i < lastThree.length; i++) {
+                        const dx = lastThree[i].x - lastThree[i-1].x;
+                        const dy = lastThree[i].y - lastThree[i-1].y;
+                        distances.push(Math.sqrt(dx*dx + dy*dy));
+                    }
+                    
+                    // Bot detection: perfect uniform movement
+                    if (distances.length === 2) {
+                        const distanceRatio = distances[0] / (distances[1] || 1);
+                        if (distanceRatio > 0.98 && distanceRatio < 1.02) {
+                            this.penalizeScore('movementPattern', 15, 'Perfect uniform movement detected');
+                        }
+                    }
+                }
+                
+                // Analyze coordinate variance
+                if (eventData.x !== undefined && eventData.y !== undefined) {
+                    const recentEvents = this.eventHistory.slice(-20).filter(e => e.x !== undefined);
+                    
+                    if (recentEvents.length > 10) {
+                        const xValues = recentEvents.map(e => e.x);
+                        const yValues = recentEvents.map(e => e.y);
+                        
+                        const xVariance = this.calculateVariance(xValues);
+                        const yVariance = this.calculateVariance(yValues);
+                        
+                        // Bot detection: too perfect coordinates
+                        if (xVariance < 0.01 && yVariance < 0.01) {
+                            this.penalizeScore('coordinate', 25, 'Suspicious coordinate clustering');
+                        }
+                    }
+                }
+                
+                // Analyze velocity
+                if (eventData.type === 'touchmove' && this.touchHistory.length > 5) {
+                    const velocities = [];
+                    const touchMoves = this.touchHistory.filter(e => e.type === 'touchmove').slice(-10);
+                    
+                    for (let i = 2; i < touchMoves.length; i++) {
+                        const dt = touchMoves[i].timestamp - touchMoves[i-2].timestamp;
+                        const dx = touchMoves[i].x - touchMoves[i-2].x;
+                        const dy = touchMoves[i].y - touchMoves[i-2].y;
+                        
+                        if (dt > 0) {
+                            const velocity = Math.sqrt(dx*dx + dy*dy) / dt;
+                            velocities.push(velocity);
+                        }
+                    }
+                    
+                    if (velocities.length > 3) {
+                        const velocityVariance = this.calculateVariance(velocities);
+                        
+                        // Bot detection: too consistent velocity
+                        if (velocityVariance < 0.001) {
+                            this.penalizeScore('velocity', 20, 'Too consistent velocity profile');
+                        }
+                    }
+                }
+                
+                // Micro movement analysis
+                if (eventData.type === 'mousemove' && this.mouseHistory.length > 5) {
+                    const recentMoves = this.mouseHistory.slice(-5);
+                    let microMovements = 0;
+                    
+                    for (let i = 1; i < recentMoves.length; i++) {
+                        const dx = recentMoves[i].x - recentMoves[i-1].x;
+                        const dy = recentMoves[i].y - recentMoves[i-1].y;
+                        
+                        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) {
+                            microMovements++;
+                        }
+                    }
+                    
+                    // Bot detection: no micro movements (too direct)
+                    if (microMovements === 0 && recentMoves.length > 2) {
+                        this.penalizeScore('microMovement', 10, 'No micro movements detected');
+                    }
+                }
+                
+                // Event frequency analysis
+                if (this.eventHistory.length > 50) {
+                    const recentEvents = this.eventHistory.slice(-50);
+                    const timeSpan = recentEvents[recentEvents.length - 1].timestamp - recentEvents[0].timestamp;
+                    
+                    if (timeSpan > 0) {
+                        const frequency = recentEvents.length / (timeSpan / 1000);
+                        
+                        // Bot detection: suspicious event frequency
+                        if (frequency > 1000) {
+                            this.penalizeScore('eventFrequency', 30, 'Suspicious event frequency: ' + frequency.toFixed(0) + ' events/sec');
+                        }
+                    }
+                }
+                
+                this.updateDisplay();
+            }
+            
+            calculateVariance(values) {
+                if (values.length === 0) return 0;
+                
+                const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+                const squaredDifferences = values.map(val => Math.pow(val - mean, 2));
+                const variance = squaredDifferences.reduce((sum, val) => sum + val, 0) / values.length;
+                
+                return variance;
+            }
+            
+            penalizeScore(scoreName, penalty, reason) {
+                if (this.scores[scoreName] > 0) {
+                    this.scores[scoreName] = Math.max(0, this.scores[scoreName] - penalty);
+                    this.logDetection(reason, 'warning');
+                }
+            }
+            
+            logDetection(message, type = 'info') {
+                const logElement = document.getElementById('eventLog');
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+                logElement.appendChild(entry);
+                logElement.scrollTop = logElement.scrollHeight;
+                
+                // Keep log manageable
+                while (logElement.children.length > 100) {
+                    logElement.removeChild(logElement.firstChild);
+                }
+            }
+            
+            updateDisplay() {
+                const totalScore = Object.values(this.scores).reduce((sum, val) => sum + val, 0) / Object.keys(this.scores).length;
+                const scoreElement = document.getElementById('trustScore');
+                
+                scoreElement.textContent = Math.round(totalScore) + '%';
+                scoreElement.className = 'score';
+                
+                if (totalScore > 80) {
+                    scoreElement.classList.add('good');
+                } else if (totalScore > 50) {
+                    scoreElement.classList.add('suspicious');
+                } else {
+                    scoreElement.classList.add('bot');
+                }
+                
+                // Update individual checks
+                for (const [scoreName, score] of Object.entries(this.scores)) {
+                    const checkElement = document.getElementById(scoreName + 'Check');
+                    if (checkElement) {
+                        if (score > 80) {
+                            checkElement.className = 'status pass';
+                        } else if (score > 50) {
+                            checkElement.className = 'status warning';
+                        } else {
+                            checkElement.className = 'status fail';
+                        }
+                    }
+                }
+            }
+            
+            startAnalysis() {
+                setInterval(() => {
+                    this.updateDisplay();
+                }, 1000);
+            }
+            
+            reset() {
+                this.scores = {
+                    isTrusted: 100,
+                    touchPressure: 100,
+                    movementPattern: 100,
+                    timing: 100,
+                    coordinate: 100,
+                    velocity: 100,
+                    microMovement: 100,
+                    eventFrequency: 100
+                };
+                
+                this.eventHistory = [];
+                this.touchHistory = [];
+                this.mouseHistory = [];
+                this.scrollHistory = [];
+                this.lastEventTime = 0;
+                this.eventIntervals = [];
+                
+                document.getElementById('eventLog').innerHTML = '<div class="log-entry">Detection reset...</div>';
+                this.updateDisplay();
+            }
+        }
+        
+        // Initialize detector
+        const detector = new AdvancedBotDetector();
+        
+        // Global functions for buttons
+        function resetDetection() {
+            detector.reset();
+        }
+        
+        function exportLog() {
+            const logEntries = document.querySelectorAll('.log-entry');
+            const logText = Array.from(logEntries).map(entry => entry.textContent).join('\n');
+            
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'bot-detection-log.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Additional passive detection
+        setInterval(() => {
+            // Check for missing browser features that bots often lack
+            const checks = {
+                'WebGL': () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+                    } catch(e) {
+                        return false;
+                    }
+                },
+                'Canvas Fingerprint': () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        ctx.textBaseline = "top";
+                        ctx.font = "14px 'Arial'";
+                        ctx.fillText("Bot Detection", 2, 2);
+                        return ctx.getImageData(0, 0, 50, 50).data.length > 0;
+                    } catch(e) {
+                        return false;
+                    }
+                },
+                'Audio Context': () => {
+                    return !!(window.AudioContext || window.webkitAudioContext);
+                },
+                'Chrome Runtime': () => {
+                    return !!window.chrome?.runtime;
+                },
+                'Permissions API': () => {
+                    return !!navigator.permissions;
+                }
+            };
+            
+            for (const [checkName, checkFn] of Object.entries(checks)) {
+                if (!checkFn()) {
+                    detector.logDetection(`Missing browser feature: ${checkName}`, 'warning');
+                }
+            }
+        }, 5000);
+        
+        // Log initial detection
+        console.log('Advanced Bot Detection System initialized');
+        console.log('Monitoring for synthetic events, irregular patterns, and bot signatures');
+    </script>
+</body>
+</html>
