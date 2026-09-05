@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Focus & Visibility Test</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            text-align: center;
+            color: #e94560;
+            margin-bottom: 0.5em;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .section h2 {
+            border-bottom: 2px solid #e94560;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            color: #e94560;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            font-size: 14px;
+        }
+        th {
+            background: #0f3460;
+            color: #53d769;
+            width: 40%;
+        }
+        td {
+            color: #ddd;
+            font-family: monospace;
+            font-size: 16px;
+        }
+        .status-pass {
+            color: #53d769;
+            font-weight: bold;
+        }
+        .status-fail {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        .status-warn {
+            color: #ffb86b;
+            font-weight: bold;
+        }
+        .event-log {
+            background: #0f3460;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .event-entry {
+            padding: 5px;
+            border-bottom: 1px solid #1a3a5c;
+        }
+        .event-time {
+            color: #888;
+            font-size: 11px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .badge-pass {
+            background: #1a4d1a;
+            color: #53d769;
+        }
+        .badge-fail {
+            background: #4d1a1a;
+            color: #ff6b6b;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🖥️ Focus & Visibility Test</h1>
+    
+    <div class="section">
+        <h2>📋 Instructions</h2>
+        <p>1. Watch the values below</p>
+        <p>2. Switch to another tab and come back</p>
+        <p>3. Minimize the browser and restore it</p>
+        <p>4. All values should remain "focused" and "visible"</p>
+    </div>
+
+    <div class="section">
+        <h2>🔍 Current State</h2>
+        <table id="stateTable">
+            <tr>
+                <th>Property</th>
+                <th>Value</th>
+                <th>Status</th>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>📡 Event Log</h2>
+        <p>Events that fire when focus/visibility changes:</p>
+        <div class="event-log" id="eventLog">
+            <div class="event-entry">Waiting for events...</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>⏱️ Timer Speed Test</h2>
+        <p>Detects if timers are throttled (background tab detection):</p>
+        <table id="timerTable">
+            <tr>
+                <th>Test</th>
+                <th>Result</th>
+                <th>Status</th>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>🎬 Animation Frame Test</h2>
+        <p>Detects if requestAnimationFrame is throttled:</p>
+        <table id="rafTable">
+            <tr>
+                <th>Test</th>
+                <th>Result</th>
+                <th>Status</th>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<script>
+// Store event log
+const eventLog = document.getElementById('eventLog');
+let eventCount = 0;
+
+function addEvent(message) {
+    eventCount++;
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString() + '.' + String(now.getMilliseconds()).padStart(3, '0');
+    
+    const entry = document.createElement('div');
+    entry.className = 'event-entry';
+    entry.innerHTML = `<span class="event-time">[${timeStr}]</span> ${message}`;
+    
+    eventLog.appendChild(entry);
+    eventLog.scrollTop = eventLog.scrollHeight;
+    
+    // Remove first "Waiting" message
+    if (eventCount === 1) {
+        eventLog.innerHTML = '';
+    }
+}
+
+// Update state table
+function updateStateTable() {
+    const hasFocus = document.hasFocus();
+    const visibilityState = document.visibilityState;
+    const hidden = document.hidden;
+    const isActive = document.activeElement !== null;
+    
+    const stateTable = document.getElementById('stateTable');
+    
+    stateTable.innerHTML = `
+        <tr>
+            <th>Property</th>
+            <th>Value</th>
+            <th>Status</th>
+        </tr>
+        <tr>
+            <td>document.hasFocus()</td>
+            <td>${hasFocus}</td>
+            <td>${hasFocus ? '<span class="status-pass">✅ Focused</span>' : '<span class="status-fail">❌ Not Focused</span>'}</td>
+        </tr>
+        <tr>
+            <td>document.visibilityState</td>
+            <td>${visibilityState}</td>
+            <td>${visibilityState === 'visible' ? '<span class="status-pass">✅ Visible</span>' : '<span class="status-fail">❌ Hidden</span>'}</td>
+        </tr>
+        <tr>
+            <td>document.hidden</td>
+            <td>${hidden}</td>
+            <td>${!hidden ? '<span class="status-pass">✅ Not Hidden</span>' : '<span class="status-fail">❌ Hidden</span>'}</td>
+        </tr>
+        <tr>
+            <td>document.activeElement</td>
+            <td>${document.activeElement ? document.activeElement.tagName : 'null'}</td>
+            <td>${document.activeElement ? '<span class="status-pass">✅ Active</span>' : '<span class="status-warn">⚠️ No Active Element</span>'}</td>
+        </tr>
+    `;
+}
+
+// Timer speed test
+function testTimerSpeed() {
+    const timerTable = document.getElementById('timerTable');
+    
+    // Test setTimeout throttling
+    const startTime = performance.now();
+    let timerCount = 0;
+    
+    const interval = setInterval(() => {
+        timerCount++;
+        
+        if (timerCount >= 10) {
+            clearInterval(interval);
+            const elapsed = performance.now() - startTime;
+            const expectedTime = 10 * 100; // 10 intervals of 100ms
+            const ratio = elapsed / expectedTime;
+            
+            let timerStatus;
+            if (ratio < 1.5) {
+                timerStatus = '<span class="status-pass">✅ Full Speed (Foreground)</span>';
+            } else if (ratio < 5) {
+                timerStatus = '<span class="status-warn">⚠️ Slightly Throttled</span>';
+            } else {
+                timerStatus = '<span class="status-fail">❌ Heavily Throttled (Background)</span>';
+            }
+            
+            timerTable.innerHTML = `
+                <tr>
+                    <th>Test</th>
+                    <th>Result</th>
+                    <th>Status</th>
+                </tr>
+                <tr>
+                    <td>setInterval (100ms x 10)</td>
+                    <td>${elapsed.toFixed(0)}ms (expected ${expectedTime}ms)</td>
+                    <td>${timerStatus}</td>
+                </tr>
+            `;
+        }
+    }, 100);
+}
+
+// requestAnimationFrame speed test
+function testRAF() {
+    const rafTable = document.getElementById('rafTable');
+    
+    let rafCount = 0;
+    const startTime = performance.now();
+    let testDone = false;
+    
+    function rafLoop() {
+        rafCount++;
+        
+        const elapsed = performance.now() - startTime;
+        
+        if (elapsed >= 1000) {
+            const fps = rafCount;
+            
+            let rafStatus;
+            if (fps > 50) {
+                rafStatus = '<span class="status-pass">✅ Full Speed (60 FPS)</span>';
+            } else if (fps > 20) {
+                rafStatus = '<span class="status-warn">⚠️ Partially Throttled</span>';
+            } else {
+                rafStatus = '<span class="status-fail">❌ Heavily Throttled (Background)</span>';
+            }
+            
+            rafTable.innerHTML = `
+                <tr>
+                    <th>Test</th>
+                    <th>Result</th>
+                    <th>Status</th>
+                </tr>
+                <tr>
+                    <td>requestAnimationFrame (1 second)</td>
+                    <td>${fps} FPS</td>
+                    <td>${rafStatus}</td>
+                </tr>
+            `;
+            
+            testDone = true;
+            return;
+        }
+        
+        requestAnimationFrame(rafLoop);
+    }
+    
+    requestAnimationFrame(rafLoop);
+}
+
+// Event listeners
+window.addEventListener('blur', () => {
+    addEvent('❌ BLUR event fired - Page LOST focus!');
+    updateStateTable();
+});
+
+window.addEventListener('focus', () => {
+    addEvent('✅ FOCUS event fired - Page gained focus');
+    updateStateTable();
+});
+
+document.addEventListener('visibilitychange', () => {
+    addEvent(`⚠️ VISIBILITYCHANGE event - Now: ${document.visibilityState}`);
+    updateStateTable();
+});
+
+window.addEventListener('pagehide', () => {
+    addEvent('❌ PAGEHIDE event fired - Page is being hidden!');
+});
+
+window.addEventListener('pageshow', () => {
+    addEvent('✅ PAGESHOW event fired - Page is being shown');
+});
+
+// Check state periodically
+setInterval(() => {
+    updateStateTable();
+}, 500);
+
+// Initial tests
+updateStateTable();
+testTimerSpeed();
+testRAF();
+
+// Log initial state
+addEvent(`Initial state - hasFocus: ${document.hasFocus()}, visibility: ${document.visibilityState}, hidden: ${document.hidden}`);
+
+</script>
+
+</body>
+</html>
